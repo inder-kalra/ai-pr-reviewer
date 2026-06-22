@@ -1,0 +1,22 @@
+# Caller workflow — copy to a consumer repo at .github/workflows/ai-audit.yml
+# Post-merge codebase auditor. Runs on a schedule, files GitHub Issues for findings.
+name: AI Codebase Audit
+
+on:
+  schedule:
+    - cron: "0 13 * * 1"   # Mondays 13:00 UTC (~09:00 ET). Adjust cadence as needed.
+  workflow_dispatch: {}      # allow manual "Run workflow" / `gh workflow run`
+
+jobs:
+  audit:
+    uses: inder-kalra/ai-pr-reviewer/.github/workflows/audit.yml@v1
+    permissions:
+      contents: read
+      issues: write
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    with:
+      # Optional. Emphasize project-specific concerns:
+      focus: ""
+      # Optional. Scope the audit to a subtree on large repos (e.g. "src/**"):
+      paths: ""

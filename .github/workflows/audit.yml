@@ -1,0 +1,66 @@
+name: AI Codebase Audit
+
+# Reusable workflow. Consumers call this on a schedule to audit their default-branch
+# state and file GitHub Issues for findings. The post-merge sibling of review.yml.
+on:
+  workflow_call:
+    inputs:
+      focus:
+        description: "Project-specific concerns to emphasize (free text)."
+        required: false
+        type: string
+        default: ""
+      paths:
+        description: "Optional path glob to scope the audit (e.g. 'src/**'). Empty = whole repo."
+        required: false
+        type: string
+        default: ""
+      model:
+        description: "Claude model id."
+        required: false
+        type: string
+        default: "claude-opus-4-8"
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read   # read the codebase
+      issues: write     # file findings
+    steps:
+      - name: Check out consumer repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check out auditor engine (for the prompt)
+        uses: actions/checkout@v4
+        with:
+          repository: inder-kalra/ai-pr-reviewer
+          ref: v1   # keep in lockstep with the tag consumers call (@v1)
+          path: .ai-auditor-engine
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run codebase audit
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          FOCUS: ${{ inputs.focus }}
+          PATHS: ${{ inputs.paths }}
+          REPO: ${{ github.repository }}
+        run: |
+          PROMPT="$(cat .ai-auditor-engine/prompts/audit.md)"
+          PROMPT="${PROMPT}
+
+          ## This run's context
+          - Repository: ${REPO}
+          - Path scope: ${PATHS:-(whole repository)}
+          - Project-specific focus: ${FOCUS:-(none provided)}"
+          claude -p "$PROMPT" \
+            --model "${{ inputs.model }}" \
+            --allowedTools "Read,Grep,Glob,Bash(gh issue list:*),Bash(gh issue create:*),Bash(gh issue view:*),Bash(gh issue comment:*)"

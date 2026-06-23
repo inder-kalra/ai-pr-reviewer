@@ -1,0 +1,19 @@
+# Caller workflow — copy to a consumer repo at .github/workflows/ai-review.yml
+# Pre-merge PR reviewer. Runs on every pull request, posts inline comments, and
+# goes red (soft gate) on CRITICAL findings.
+name: AI PR Review
+
+on:
+  pull_request: {}
+
+jobs:
+  review:
+    uses: inder-kalra/ai-pr-reviewer/.github/workflows/review.yml@v1
+    permissions:
+      contents: read
+      pull-requests: write
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    with:
+      # Optional. Emphasize project-specific concerns:
+      focus: ""

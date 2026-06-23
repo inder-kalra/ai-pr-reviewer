@@ -1,0 +1,56 @@
+name: Release (auto-tag v1.x.y)
+
+# When the review/audit logic or prompts change on main, cut the next immutable
+# v1.<minor>.<patch> tag and fast-forward the moving `v1` alias to it. Consumers
+# pin to the immutable SHA (with a `# v1.x.y` comment) and Dependabot bumps them
+# to each new patch automatically — that's how a central engine change reaches
+# every onboarded repo without anyone editing them by hand.
+#
+# Infra-only changes (this file, templates/**, README) deliberately do NOT cut a
+# release, because they don't change what a consumer's review/audit actually does.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/review.yml'
+      - '.github/workflows/audit.yml'
+      - 'prompts/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # create + move tags
+
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need all tags to compute the next version
+
+      - name: Cut next patch tag and move v1
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          latest="$(git tag -l 'v1.*.*' | sort -V | tail -n1)"
+          if [ -z "$latest" ]; then
+            next="v1.0.0"
+          else
+            ver="${latest#v}"
+            minor="$(echo "$ver" | cut -d. -f2)"
+            patch="$(echo "$ver" | cut -d. -f3)"
+            next="v1.${minor}.$((patch + 1))"
+          fi
+          if git rev-parse -q --verify "refs/tags/${next}" >/dev/null; then
+            echo "Tag ${next} already exists — nothing to do."
+            exit 0
+          fi
+          echo "Tagging ${next} at ${GITHUB_SHA} and moving v1 to it."
+          git tag "${next}" "${GITHUB_SHA}"
+          git tag -f v1 "${GITHUB_SHA}"
+          git push origin "${next}"
+          git push -f origin v1

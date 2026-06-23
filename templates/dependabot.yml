@@ -1,0 +1,23 @@
+# Consumer Dependabot config — drop into a repo at `.github/dependabot.yml` when
+# onboarding the AI PR reviewer and/or codebase auditor.
+#
+# Why: the engine callers are pinned to an immutable commit SHA (supply-chain
+# safe — a force-moved tag can't run code with your live OAuth token). The cost
+# of pinning is that central engine updates don't auto-propagate. This config
+# closes that gap: Dependabot watches the SHA-pinned `uses:` lines in
+# `.github/workflows/` and, whenever the engine cuts a new `v1.x.y` release,
+# opens a PR that bumps the pinned SHA (and its `# v1.x.y` comment).
+#
+# That bump PR is itself reviewed by the AI reviewer, and a human merges it —
+# the human merge is the deliberate security gate the SHA pin exists to provide,
+# so do NOT enable auto-merge for it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - ai-reviewer
+    commit-message:
+      prefix: chore(ci)

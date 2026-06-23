@@ -84,16 +84,23 @@ jobs:
             | tee /tmp/ai-review.log
 
       - name: Soft merge gate (red on CRITICAL)
-        # Deterministic gate: the prompt forces a final-line VERDICT. We grep the log.
-        # No verdict at all => silent breakage => fail loudly so it's visible.
+        # The prompt asks for a final-line `VERDICT: CRITICAL|CLEAN`. We grep the log
+        # tolerantly (markdown bold/quotes/whitespace around the sentinel are allowed).
+        #
+        # Design: only a CRITICAL verdict blocks. A *missing* verdict no longer fails —
+        # the previous fail-closed branch false-blocked genuinely-clean PRs whenever the
+        # model phrased its last line as prose. A real reviewer crash is already caught
+        # upstream: the `claude ... | tee` step runs under the Actions default shell
+        # (`bash -eo pipefail`), so a non-zero `claude` exit fails that step before we get
+        # here. So here we fail ONLY on a detected CRITICAL, and otherwise pass (warning if
+        # the sentinel was missing so the drift stays visible). Gate is advisory/soft.
         run: |
-          if grep -q '^VERDICT: CRITICAL' /tmp/ai-review.log; then
+          if grep -qiE '^[[:space:]>*_~`-]*VERDICT:?[[:space:]*_~`]*CRITICAL' /tmp/ai-review.log; then
             echo "::error::CRITICAL findings in this PR — review the inline comments before merging."
             exit 1
-          elif grep -q '^VERDICT: CLEAN' /tmp/ai-review.log; then
-            echo "No CRITICAL findings. Review passed (WARNING/INFO may still be present)."
-            exit 0
+          elif grep -qiE '^[[:space:]>*_~`-]*VERDICT:?[[:space:]*_~`]*CLEAN' /tmp/ai-review.log; then
+            echo "Review CLEAN — no CRITICAL findings (WARNING/INFO may still be present)."
           else
-            echo "::error::No VERDICT line found in the review log — the reviewer did not complete cleanly."
-            exit 1
+            echo "::warning::No explicit VERDICT line found, but no CRITICAL was detected — passing. The reviewer likely formatted its verdict unexpectedly; the inline review still posted."
           fi
+          exit 0

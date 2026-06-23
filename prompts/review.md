@@ -52,11 +52,21 @@ re-litigate pre-existing code the PR does not change.
    leave a short summary review saying so.
 
 ## Verdict line (the CI gate reads this — non-negotiable)
-After you have finished posting the review, your **FINAL line of stdout** must be EXACTLY
-one of:
+After you have finished posting the review, the **FINAL line of your stdout response** must
+be EXACTLY one of these, and nothing else on that line:
 
 - `VERDICT: CRITICAL` — if you found one or more CRITICAL findings.
 - `VERDICT: CLEAN` — if you found no CRITICAL findings (WARNING/INFO are fine).
 
-Print it as the very last thing, on its own line, with no trailing text after it. The gate
-greps for this line: a missing verdict is treated as a failure, so always print exactly one.
+Rules for the verdict line, in priority order:
+1. It is the **last line** of your reply. Do not write any prose, summary, sign-off,
+   markdown, code fence, or blank commentary after it.
+2. Write it **plain**: no bold, no backticks, no blockquote, no leading `-`. Just the two
+   words. (Example of the whole final line: `VERDICT: CLEAN`)
+3. Put your human-readable summary in the posted GitHub review body — NOT on this line.
+4. Always print exactly one verdict, every run. Emit `VERDICT: CRITICAL` if and only if at
+   least one CRITICAL finding exists; otherwise `VERDICT: CLEAN`.
+
+The gate greps stdout for this line. A CRITICAL verdict fails the merge check; CLEAN passes.
+(If the line is missing entirely the gate will pass with a warning rather than block, but do
+not rely on that — always emit the exact sentinel.)

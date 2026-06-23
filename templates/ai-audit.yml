@@ -1,5 +1,10 @@
 # Caller workflow — copy to a consumer repo at .github/workflows/ai-audit.yml
 # Post-merge codebase auditor. Runs on a schedule, files GitHub Issues for findings.
+#
+# The engine is pinned to an immutable SHA — it runs with your live OAuth token, so
+# a mutable tag must not run here. Pair this with .github/dependabot.yml (copy
+# templates/dependabot.yml) so Dependabot bumps the SHA on each engine release; its
+# first run also fast-forwards this pin to the latest v1.x.y.
 name: AI Codebase Audit
 
 on:
@@ -9,7 +14,7 @@ on:
 
 jobs:
   audit:
-    uses: inder-kalra/ai-pr-reviewer/.github/workflows/audit.yml@v1
+    uses: inder-kalra/ai-pr-reviewer/.github/workflows/audit.yml@fc4a052de562a5cb0a7f1390f3aea39f6e044693  # v1.0.0
     permissions:
       contents: read
       issues: write
